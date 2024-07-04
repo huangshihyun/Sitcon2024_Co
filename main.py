@@ -60,22 +60,18 @@ async def process_user_message(message, user_id):
         if news_response and news_response.get("status") == "ok":
             articles = news_response.get("articles", [])
             if articles:
-                reply_messages = []
-                for i, article in enumerate(articles[:5]):
-                    reply_messages.append(f"新聞 {i+1}:\n標題: {article['title']}\n描述: {article['description']}\n更多詳情: {article['url']}\n")
-                return "\n".join(reply_messages)
+                top_article = articles[0]
+                return f"最新新聞：\n\n標題: {top_article['title']}\n描述: {top_article['description']}\n\n更多詳情: {top_article['url']}"
         return "目前沒有相關新聞。"
     elif "故事" in message:
         # 呼叫 generate_gmini_story 函數來生成故事
         story_response = generate_gmini_story("開始你的故事...", user_id, gmini_api_key)
         if story_response:
-            story_text = story_response.get("story", "無法生成故事。")
-            # 去除多餘的感謝訊息
-            story_text = story_text.replace('感謝您的訊息', '').strip()
-            return story_text
+            return story_response.get("story", "無法生成故事。")
         return "生成故事時出現錯誤。"
     else:
         return "請問你想了解什麼？可以說「新聞」或「故事」。"
+
 
 @app.post("/webhooks/line")
 async def handle_callback(request: Request):
