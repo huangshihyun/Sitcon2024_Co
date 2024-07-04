@@ -1,4 +1,3 @@
-# main.py
 import os
 import logging
 from fastapi import FastAPI, HTTPException, Request
@@ -12,7 +11,6 @@ from linebot.v3.messaging import (
 )
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
-from firebase import firebase
 from utils import fetch_news_data, generate_gmini_story
 
 # 如果不是在生產環境中，則載入 .env 文件中的環境變量
@@ -41,8 +39,6 @@ async_api_client = AsyncApiClient(configuration)
 line_bot_api = AsyncMessagingApi(async_api_client)
 parser = WebhookParser(channel_secret)
 
-# 配置 Firebase 和 API Key
-firebase_url = os.getenv('FIREBASE_URL')
 news_api_key = os.getenv('NEWS_API_KEY')
 gmini_api_key = os.getenv('GMINI_API_KEY')
 
@@ -60,18 +56,22 @@ async def process_user_message(message, user_id):
         if news_response and news_response.get("status") == "ok":
             articles = news_response.get("articles", [])
             if articles:
-                top_article = articles[0]
-                return f"最新新聞：\n\n標題: {top_article['title']}\n描述: {top_article['description']}\n\n更多詳情: {top_article['url']}"
+                reply_messages = []
+                for i, article in enumerate(articles[:5]):
+                    reply_messages.append(f"新聞 {i+1}:\n標題: {article['title']}\n描述: {article['description']}\n更多詳情: {article['url']}\n")
+                return "\n".join(reply_messages)
         return "目前沒有相關新聞。"
     elif "故事" in message:
         # 呼叫 generate_gmini_story 函數來生成故事
         story_response = generate_gmini_story("開始你的故事...", user_id, gmini_api_key)
         if story_response:
-            return story_response.get("story", "無法生成故事。")
+            story_text = story_response.get("story", "無法生成故事。")
+            # 去除多餘的感謝訊息
+            story_text = story_text.replace('感謝您的訊息', '').strip()
+            return story_text
         return "生成故事時出現錯誤。"
     else:
         return "請問你想了解什麼？可以說「新聞」或「故事」。"
-
 
 @app.post("/webhooks/line")
 async def handle_callback(request: Request):
